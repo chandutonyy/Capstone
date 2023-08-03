@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flask App</title>
+</head>
+<body>
+    <form method="POST">
+        <label for="user_input">Enter your input:</label>
+        <input type="text" id="user_input" name="user_input">
+        <button type="submit">Submit</button>
+    </form>
+
+    {% if result %}
+        <h2>Results:</h2>
+        <table>
+            {% for key, value in result.items() %}
+                <tr>
+                    <th>{{ key }}</th>
+                    <td>{{ value }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    {% if plot %}
+        <img src="{{ plot }}" alt="Plot">
+    {% endif %}
+</body>
+</html>
