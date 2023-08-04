@@ -7,6 +7,14 @@ This is a capstone project, an application that uses a machine learning model to
 The model is trained on a dataset of comments from various internet forums and is capable of identifying six types of 
 toxic behavior: toxic, severe toxic, obscene, threat, insult, and identity hate.
 
+## Dataset link
+
+https://storage.googleapis.com/safedialogue/SafeDialogue/train.csv
+
+## Trained - Model
+
+https://storage.googleapis.com/safedialogue/SafeDialogue/model.bin
+
 ## Installation
 
 1. Clone the repository:
