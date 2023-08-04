@@ -7,62 +7,91 @@ Original file is located at
     https://colab.research.google.com/drive/1pGzttet8dG9fPHuHujygpBVvhOdyJFWI
 """
 
-# pip install transformers
-
-# !pip install transformers
+"""
+Actual model is trained and tested in the above colab notebook whereas parts of code from the notebook
+parts of necessary code snippets and the trained model is taken from the above notebook to get here
+and get this program running in the site.
+"""
 import pandas as pd
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer
-from torch.utils.data import Dataset, DataLoader
-from sklearn.model_selection import train_test_split
+# from torch.utils.data import Dataset, DataLoader
+# from sklearn.model_selection import train_test_split
+from tabulate import tabulate
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy
+from google.cloud import storage
+print(
+    "\n\n-------------------------------------------Importing libraries---------------------------------------------------")
 
-print("--------------------Importing libraries--------------------------")
-# # use GPU if available
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-# device
-#
-# from google.colab import drive
-# drive.mount('/content/drive')
-#
-# # Commented out IPython magic to ensure Python compatibility.
-# # %cd /content/drive/MyDrive/Hatespeech-capstone
 
-class HateSpeechDataset(Dataset):
 
-    def __init__(self, dataframe, tokenizer, max_len):
-        self.tokenizer = tokenizer
-        self.data = dataframe
-        self.comment_text = dataframe.comment_text
-        self.targets = self.data[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']].values
-        self.max_len = max_len
 
-    def __len__(self):
-        return len(self.comment_text)
 
-    def __getitem__(self, index):
-        comment_text = str(self.comment_text.iloc[index])
-        comment_text = " ".join(comment_text.split())
+def download_blob(bucket_name, source_blob_name, destination_file_name):
+    """Downloads a blob from the bucket."""
+    # bucket_name = "your-bucket-name"
+    # source_blob_name = "storage-object-name"
+    # destination_file_name = "local/path/to/file"
 
-        inputs = self.tokenizer.encode_plus(
-            comment_text,
-            None,
-            add_special_tokens=True,
-            max_length=self.max_len,
-            pad_to_max_length=True,
-            return_token_type_ids=True
+    storage_client = storage.Client()
+
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
+
+    print(
+        "Blob {} downloaded to {}.".format(
+            source_blob_name, destination_file_name
         )
-        ids = inputs['input_ids']
-        mask = inputs['attention_mask']
+    )
 
-        return {
-            'ids': torch.tensor(ids, dtype=torch.long),
-            'mask': torch.tensor(mask, dtype=torch.long),
-            'targets': torch.tensor(self.targets[index], dtype=torch.float)
-        }
+print(
+    "\n\n-------------------------------------------Downloading (Dataset)/model from GCS---------------------------------------------------")
 
-print("---------------Dataset function running-----------------------")
+# # Download the train.csv file
+# download_blob('safedialogue', 'SafeDialogue/', 'train.csv')
+
+# Download the model.bin file
+download_blob('safedialogue', 'SafeDialogue/', 'model.bin')
+
+
+
+# class HateSpeechDataset(Dataset):
+
+#     def __init__(self, dataframe, tokenizer, max_len):
+#         self.tokenizer = tokenizer
+#         self.data = dataframe
+#         self.comment_text = dataframe.comment_text
+#         self.targets = self.data[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']].values
+#         self.max_len = max_len
+
+#     def __len__(self):
+#         return len(self.comment_text)
+
+#     def __getitem__(self, index):
+#         comment_text = str(self.comment_text.iloc[index])
+#         comment_text = " ".join(comment_text.split())
+
+#         inputs = self.tokenizer.encode_plus(
+#             comment_text,
+#             None,
+#             add_special_tokens=True,
+#             max_length=self.max_len,
+#             padding='max_length',
+#             return_token_type_ids=True
+#         )
+#         ids = inputs['input_ids']
+#         mask = inputs['attention_mask']
+
+#         return {
+#             'ids': torch.tensor(ids, dtype=torch.long),
+#             'mask': torch.tensor(mask, dtype=torch.long),
+#             'targets': torch.tensor(self.targets[index], dtype=torch.float)
+#         }
+
+# print("\n\n-------------------------------------------Dataset function running---------------------------------------------------")
 # Parameters
 MAX_LEN = 200
 TRAIN_BATCH_SIZE = 8
@@ -71,37 +100,38 @@ EPOCHS = 1
 LEARNING_RATE = 1e-05
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-# Load the dataset
-train_dataset = pd.read_csv('train.csv')
-print("-----------------Dataset Loaded---------------------")
+# # Load the dataset
+# train_dataset = pd.read_csv('train.csv')
+# print("\n\n---------------------------------------------Dataset Loaded-------------------------------------------------")
 
-# Split into training and validation sets
-train_data, val_data = train_test_split(train_dataset, test_size=0.1)
+# # Split into training and validation sets
+# train_data, val_data = train_test_split(train_dataset, test_size=0.1)
 
-# Create the HateSpeechDataset
-training_set = HateSpeechDataset(train_data, tokenizer, MAX_LEN)
-val_set = HateSpeechDataset(val_data, tokenizer, MAX_LEN)
+# # Create the HateSpeechDataset
+# training_set = HateSpeechDataset(train_data, tokenizer, MAX_LEN)
+# val_set = HateSpeechDataset(val_data, tokenizer, MAX_LEN)
 
-train_data.reset_index(drop=True, inplace=True)
-val_data.reset_index(drop=True, inplace=True)
+# train_data.reset_index(drop=True, inplace=True)
+# val_data.reset_index(drop=True, inplace=True)
 
-train_params = {'batch_size': TRAIN_BATCH_SIZE,
-                'shuffle': True,
-                'num_workers': 0
-                }
+# train_params = {'batch_size': TRAIN_BATCH_SIZE,
+#                 'shuffle': True,
+#                 'num_workers': 0
+#                 }
 
-val_params = {'batch_size': VALID_BATCH_SIZE,
-              'shuffle': False,
-              'num_workers': 0
-              }
+# val_params = {'batch_size': VALID_BATCH_SIZE,
+#               'shuffle': False,
+#               'num_workers': 0
+#               }
 
-training_loader = DataLoader(training_set, **train_params)
-val_loader = DataLoader(val_set, **val_params)
-print("-----------------Data Loader Successful---------------------")
+# training_loader = DataLoader(training_set, **train_params)
+# val_loader = DataLoader(val_set, **val_params)
+# print("\n\n---------------------------------------------Data Loader Successful-------------------------------------------------")
 
 model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=6)
-# model.to(device)
-print("---------------Model Downloaded-----------------------")
+# # model.to(device)
+print(
+    "\n\n-------------------------------------------Model Downloaded---------------------------------------------------")
 
 loss_function = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(params=model.parameters(), lr=LEARNING_RATE)
@@ -133,74 +163,7 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=LEARNING_RATE)
 
 model_save_path = "model.bin"
 
-print("----------------Saved Model retrieved----------------------")
 
-# torch.save(model.state_dict(), model_save_path)
-
-# Un comment and run this below\ cell to use the model that is saved earlier
-
-# model_save_path = "model.bin"
-# Initialize the same model architecture you used for training
-model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=6)
-
-# Load the weights from the saved model
-# model.load_state_dict(torch.load(model_save_path))
-model.load_state_dict(torch.load(model_save_path, map_location=torch.device('cpu')))
-
-# Move the model to the device and set it to evaluation mode
-# model = model.to(device)
-model.eval()
-
-print("----------------Saved Model used----------------------")
-
-# def binary_accuracy_per_class(preds, labels):
-#     rounded_preds = torch.round(torch.sigmoid(preds))
-#     return (rounded_preds == labels).float().mean(axis=0)  # Compute accuracy per class
-
-
-# model.eval()
-# epoch_loss = 0
-# epoch_acc = torch.zeros(6)  # We have 6 classes
-
-# with torch.no_grad():
-#     for _, data in enumerate(val_loader, 0):
-#         ids = data['ids']
-#         mask = data['mask']
-#         targets = data['targets']
-
-#         outputs = model(ids, mask).logits
-#         loss = loss_function(outputs, targets)
-#         print("running.........")
-#         acc = binary_accuracy_per_class(outputs, targets)
-
-#         epoch_loss += loss.item()
-#         epoch_acc += acc
-
-# print(f'Validation Loss: {epoch_loss / len(val_loader)}')
-# print(f'Validation Accuracy: {epoch_acc / len(val_loader)}')  # Mean accuracy per class
-
-# # set accuracies as your tensor
-# accuracies = epoch_acc / len(val_loader)
-
-# # Print the tensor
-# print('Validation Accuracies for each class:', accuracies)
-# class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-
-# for class_name, accuracy in zip(class_names, accuracies):
-#     print(f'Validation Accuracy for class {class_name}: {accuracy}')
-
-# import matplotlib.pyplot as plt
-# import numpy as np
-
-# accuracies = np.array([0.9660, 0.9892, 0.9845, 0.9976, 0.9779, 0.9932])
-# class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-
-# plt.figure(figsize=(10, 6))
-# plt.barh(class_names, accuracies, color='skyblue')
-# plt.xlabel('Accuracy')
-# plt.title('Validation Accuracy for Each Class')
-# plt.xlim(0, 1)
-# plt.show()
 def load_model():
     model_save_path = "model.bin"
     model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=6)
@@ -208,161 +171,23 @@ def load_model():
     model.eval()
     return model
 
+
 def load_tokenizer():
     return BertTokenizer.from_pretrained('bert-base-uncased')
 
 
 load_model()
-
-# def predict_toxicity(sentence, model, tokenizer):
-#     # Prepare the inputs
-#     inputs = tokenizer.encode_plus(
-#         sentence,
-#         None,
-#         add_special_tokens=True,
-#         max_length=MAX_LEN,
-#         pad_to_max_length=True,
-#         return_token_type_ids=True
-#     )
-#     ids = torch.tensor([inputs['input_ids']], dtype=torch.long)
-#     mask = torch.tensor([inputs['attention_mask']], dtype=torch.long)
-
-#     # Get the model outputs
-#     with torch.no_grad():
-#         outputs = model(ids, mask).logits
-
-#     # Apply the sigmoid function to get the probabilities
-#     probs = torch.sigmoid(outputs).detach().cpu().numpy()
-
-#     # Create a dictionary mapping class names to probabilities
-#     class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-#     class_probs = {name: prob for name, prob in zip(class_names, probs[0])}
-
-#     return class_probs
+print(
+    "\n\n----------------------------------------------------------Saved Model retrieved--------------------------------------------------")
 
 
-# # Test the function
-# sentence = "This is a test sentence."
-# print(sentence)
-# predict_toxicity(sentence, model, tokenizer)
-
-# # Test the function with threat
-# sentence = "This is a kill sentence."
-# print(sentence)
-# predict_toxicity(sentence, model, tokenizer)
-
-# # Test the function with obscee comment
-# sentence = "This is a shitty fuck sentence."
-# print(sentence)
-# predict_toxicity(sentence, model, tokenizer)
-
-# # Test the function with identity hate comment
-# sentence = "Most gangsters are black people"
-# print(sentence)
-# predict_toxicity(sentence, model, tokenizer)
-
-# while True:
-#     try:
-#         # Get user input
-#         user_input = input("Enter a sentence (or '[quit]' to stop): ")
-#
-#         # Check if the user wants to quit
-#         if user_input.lower() == '[quit]':
-#             break
-#
-#         # Make a prediction and print the result
-#         prediction = predict_toxicity(user_input, model, tokenizer, device)
-#         print(f"Predicted toxicity levels: {prediction}\n")
-#
-#     except Exception as e:
-#         print(f"An error occurred: {e}\n")
-
-from tabulate import tabulate
-
-
-def predict_toxic_class_prod(sentence, model, tokenizer):
+def classify_toxicity(sentence, model, tokenizer):
     inputs = tokenizer.encode_plus(
         sentence,
         None,
         add_special_tokens=True,
         max_length=200,
-        pad_to_max_length=True,
-        return_token_type_ids=True
-    )
-    ids = torch.tensor([inputs['input_ids']], dtype=torch.long)
-    mask = torch.tensor([inputs['attention_mask']], dtype=torch.long)
-
-    outputs = model(ids, mask).logits
-    outputs = torch.sigmoid(outputs).detach().cpu().numpy()
-    outputs = outputs[0]  # get the probabilities
-
-    class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-    # Associate class names with their probabilities
-    result = dict(zip(class_names, outputs))
-
-    # remove 'toxic' from the result dictionary for max_prob checking
-    max_prob_check_result = {key: result[key] for key in result if key != 'toxic'}
-
-    # Sort the classes based on their probabilities
-    sorted_classes = sorted(max_prob_check_result.items(), key=lambda item: item[1], reverse=True)
-
-    # Check if the highest probability is below the defined threshold
-    if sorted_classes[0][1] < 0.4:
-        print("This sentence seems perfectly alright for public viewing.")
-    else:
-        # Provide an interpretation based on the highest probability class
-        print(
-            f"This sentence is predominantly {sorted_classes[0][0]} with a probability of {sorted_classes[0][1]:.2f}.")
-        # Also provide information on the next most probable class, if its probability is significant
-        if sorted_classes[1][1] > 0.2:
-            print(
-                f"It also exhibits characteristics of {sorted_classes[1][0]} with a probability of {sorted_classes[1][1]:.2f}.")
-
-    print("\nPredicted toxicity levels:")
-    print(tabulate(sorted(result.items()), headers=["Class", "Probability"], tablefmt="pretty"))
-
-    return result
-
-
-# while True:
-#     try:
-#         # Get user input
-#         user_input = input("Enter a sentence (or '[quit]' to stop): ")
-#
-#         # Check if the user wants to quit
-#         if user_input.lower() == '[quit]':
-#             break
-#
-#         # Make a prediction and print the result
-#         prediction = predict_toxic_class_prod(user_input, model, tokenizer, device)
-#         # print(f"Predicted toxicity levels: {prediction}\n")
-#
-#     except Exception as e:
-#         print(f"An error occurred: {e}\n")
-
-
-# # Initialize the same model architecture you used for training
-# model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=6)
-
-# # Load the weights from the saved model
-# model.load_state_dict(torch.load(model_save_path))
-
-# # Move the model to the device and set it to evaluation mode
-# model = model.to(device)
-# model.eval()
-
-import matplotlib.pyplot as plt
-
-
-def plot_toxicity(sentence, model, tokenizer):
-
-
-    inputs = tokenizer.encode_plus(
-        sentence,
-        None,
-        add_special_tokens=True,
-        max_length=200,
-        pad_to_max_length=True,
+        padding='max_length',
         return_token_type_ids=True
     )
     ids = torch.tensor([inputs['input_ids']], dtype=torch.long)
@@ -384,45 +209,38 @@ def plot_toxicity(sentence, model, tokenizer):
 
     # Check if the highest probability is below the defined threshold
     if sorted_classes[0][1] < 0.4:
-        print("This sentence seems perfectly alright for public viewing.")
+        result_text = "This sentence seems perfectly alright for public viewing."
     else:
         # Provide an interpretation based on the highest probability class
-        print(
-            f"This sentence is predominantly {sorted_classes[0][0]} with a probability of {sorted_classes[0][1]:.2f}.")
+        result_text = f"This sentence is predominantly {sorted_classes[0][0]} with a probability of {sorted_classes[0][1]:.2f}."
         # Also provide information on the next most probable class, if its probability is significant
         if sorted_classes[1][1] > 0.2:
-            print(
-                f"It also exhibits characteristics of {sorted_classes[1][0]} with a probability of {sorted_classes[1][1]:.2f}.")
+            result_text += f"\nIt also exhibits characteristics of {sorted_classes[1][0]} with a probability of {sorted_classes[1][1]:.2f}."
+    return result, result_text, result_no_toxic
 
-    # Create a pie chart
-    plt.pie(result_no_toxic.values(), labels=result_no_toxic.keys(), autopct='%1.1f%%')
+
+def plot_toxicity(result_no_toxic):
+    plt.figure(figsize=[14, 14])
+    plt.pie(result_no_toxic.values(), labels=result_no_toxic.keys(), autopct='%1.1f%%',
+            textprops={'font-size': 14})  # Increase the font-size
+    plt.title("Toxicity Classification", fontsize=16)  # Increase the title font-size
+    plt.legend(result_no_toxic.keys(), loc='best')
+    # plt.barh(list(result_no_toxic.keys()), list(result_no_toxic.values()))
+
     plt.title("Toxicity Classification")
 
-    # Save the plot to a .png file
     plot_file = "static/plot.png"
     plt.savefig(plot_file)
 
-    return result, plot_file
+    return plot_file
+
 
 def user_input_fn(sentence, model, tokenizer):
-    prediction = predict_toxic_class_prod(sentence, model, tokenizer)
-    result, plot_file = plot_toxicity(sentence, model, tokenizer)
-    return prediction, plot_file
+    prediction, prediction_text, result_no_toxic = classify_toxicity(sentence, model, tokenizer)
+    plot_file = plot_toxicity(result_no_toxic)
+    return prediction, prediction_text, plot_file
 
 
-# while True:
-#     try:
-#         # Get user input
-#         user_input = input("Enter a sentence (or '[quit]' to stop): ")
+print("\n\n Open the url and start testing............................\n\n")
 
-#         # Check if the user wants to quit
-#         if user_input.lower() == '[quit]':
-#             break
-
-#         # Make a prediction and print the result
-#         prediction = plot_toxicity(user_input, model, tokenizer)
-#         predict_toxic_class_prod(user_input, model, tokenizer)
-#         # print(f"Predicted toxicity levels: {prediction}\n")
-
-#     except Exception as e:
-#         print(f"An error occurred: {e}\n")
+user_input_fn("I am gonna fucking kill you ", model, tokenizer)
