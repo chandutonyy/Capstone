@@ -22,6 +22,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from google.cloud import storage
+import io
+import base64
 print(
     "\n\n-------------------------------------------Importing libraries---------------------------------------------------")
 
@@ -229,18 +231,19 @@ def plot_toxicity(result_no_toxic):
 
     plt.title("Toxicity Classification")
 
-    plot_file = "static/plot.png"
-    plt.savefig(plot_file)
-
-    return plot_file
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    return base64.b64encode(img.read()).decode()
 
 
 def user_input_fn(sentence, model, tokenizer):
     prediction, prediction_text, result_no_toxic = classify_toxicity(sentence, model, tokenizer)
-    plot_file = plot_toxicity(result_no_toxic)
-    return prediction, prediction_text, plot_file
+    plot_data = plot_toxicity(result_no_toxic)
+    return prediction, prediction_text, plot_data
+
 
 
 print("\n\n Open the url and start testing............................\n\n")
 
-user_input_fn("I am gonna fucking kill you ", model, tokenizer)
+# user_input_fn("I am gonna fucking kill you ", model, tokenizer)

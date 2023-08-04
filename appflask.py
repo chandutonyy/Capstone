@@ -22,13 +22,11 @@ def home():
     if request.method == 'POST':
         user_input = request.form.get('user_input')
         if user_input:
-            prediction, prediction_text, plot_path = user_input_fn(user_input, model, tokenizer)
-
-            # Store the path to the plot
-            plot = plot_path
+            prediction, prediction_text, plot_data = user_input_fn(user_input, model, tokenizer)
+            plot = plot_data
 
     return render_template('index.html', prediction=prediction, prediction_text=prediction_text, plot=plot)
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run()
