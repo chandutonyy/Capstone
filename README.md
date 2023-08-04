@@ -1,6 +1,3 @@
-Sure, here's a basic template for a README file. You should replace the placeholders with the actual details about your 
-project:
-
 ```markdown
 # Capstone Project
 
@@ -15,7 +12,7 @@ toxic behavior: toxic, severe toxic, obscene, threat, insult, and identity hate.
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/username/Capstone.git
+    git clone https://github.com/chandutonyy/Capstone.git
     ```
 
 2. Navigate to the project directory:
@@ -44,11 +41,10 @@ You can enter a text string into the provided field, then press the "Submit" but
 
 ## Contact
 
-If you have any questions, issues, or feedback, please contact me at: youremail@example.com
+If you have any questions, issues, or feedback, please contact me at: saichanduyalagandhula@example.com
 
 ## License
 
 This project is licensed under the terms of the MIT license.
 ```
 
-Remember to replace the placeholders with your actual details.
